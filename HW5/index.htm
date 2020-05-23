@@ -1,0 +1,762 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			var gl;
+			var shaderProgram;
+			var vertexPositionBuffer;
+			var canvas;
+
+			function startGL() {
+				canvas = document.getElementById("3dcanvas");
+				try {
+					gl = canvas.getContext("experimental-webgl");
+					gl.viewportWidth = canvas.width;
+					gl.viewportHeight = canvas.height;
+				}
+				catch(e) {
+					console.log(e);
+				}
+				if(!gl) alert("error");
+//CPP CODES
+				const vertexShaderSource = `
+					precision highp float;
+					varying vec3 vColor;
+					varying vec2 vTexUV;
+					attribute vec3 aVertexPosition;
+					attribute vec3 aVertexColor;
+					attribute vec2 aVertexCoords;
+					uniform mat4 uMVMatrix;
+					uniform mat4 uPMatrix;
+					uniform mat4 uVMatrix;
+
+					void main(void) {
+						gl_Position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+						vColor = aVertexColor;
+						vTexUV = aVertexCoords;
+					}`;
+
+				const fragmentShaderSource = `
+				precision highp float;
+				varying vec3 vColor;
+				varying vec2 vTexUV;
+
+				uniform sampler2D uSampler;
+
+					void main(void) {
+						gl_FragColor = texture2D(uSampler, vTexUV);
+					}`;
+
+				let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+				let vertexShader = gl.createShader(gl.VERTEX_SHADER);
+				gl.shaderSource(fragmentShader,fragmentShaderSource);
+				gl.shaderSource(vertexShader,vertexShaderSource);
+				gl.compileShader(fragmentShader);
+				gl.compileShader(vertexShader);
+				if(!gl.getShaderParameter(fragmentShader,gl.COMPILE_STATUS)) alert(gl.getShaderInfoLog(fragmentShader));
+				if(!gl.getShaderParameter(vertexShader,gl.COMPILE_STATUS)) alert(gl.getShaderInfoLog(vertexShader));
+				shaderProgram = gl.createProgram();
+				gl.attachShader(shaderProgram, vertexShader);
+				gl.attachShader(shaderProgram, fragmentShader);
+				gl.linkProgram(shaderProgram);
+				if(!gl.getProgramParameter(shaderProgram,gl.LINK_STATUS)) alert("znowu error");
+
+				czonsteczkiCenter={};
+				czonsteczkiCenter.X=-3;
+				czonsteczkiCenter.Y=-9;
+				czonsteczkiCenter.Z=-1;
+				var newPosition = [];
+				var newCoords = [];
+				var newColor = [];
+				var newNormals = [];
+				{
+					let [position, colors, coords, normals] = createCzonsteczki();
+					newPosition.push(...position);
+					newCoords.push(...coords);
+					newColor.push(...colors);
+					newNormals.push(...normals);
+				}
+				
+//GEOMETRY
+				var vertPerson=[
+					//GŁOWA
+					//przód
+					-2,-8,2.5, -2,-10,2.5, -4,-10,2.5,
+					-2,-8,2.5, -4,-10,2.5, -4,-8,2.5,
+					//tył
+					-2,-8,0.5, -2,-10,0.5, -4,-10,0.5,
+					-2,-8,0.5, -4,-10,0.5, -4,-8,0.5,
+					//lewo
+					-2,-8,0.5, -2,-10,0.5, -2,-10,2.5,
+					-2,-8,0.5, -2,-10,2.5, -2,-8,2.5,
+					//prawo
+					-4,-8,0.5, -4,-10,0.5, -4,-10,2.5,
+					-4,-8,0.5, -4,-10,2.5, -4,-8,2.5,
+					//góra
+					-2,-10,2.5, -2,-10,0.5, -4,-10,0.5,
+					-2,-10,2.5, -4,-10,0.5, -4,-10,2.5,
+					//BRZUCH
+					//przód
+					-1,-4,3, -1,-8,3, -5,-8,3, 
+					-1,-4,3, -5,-8,3, -5,-4,3, 
+					//plecy
+					-1,-4,0, -1,-8,0, -5,-8,0, 
+					-1,-4,0, -5,-8,0, -5,-4,0, 
+					//lewo
+					-1,-4,0, -1,-8,0, -1,-8,3,
+					-1,-4,0, -1,-8,3, -1,-4,3,
+					//prawo
+					-5,-4,0, -5,-8,0, -5,-8,3,
+					-5,-4,0, -5,-8,3, -5,-4,3,
+					//góra
+					-1,-8,3, -1,-8,0, -5,-8,0,
+					-1,-8,3, -5,-8,0, -5,-8,3,
+					//dół
+					-1,-4,3, -1,-4,0, -5,-4,0,
+					-1,-4,3, -5,-4,0, -5,-4,3,
+					//REKA LEWA
+					//przód
+					0,-4,2, 0,-8,2, -1,-8,2,
+					0,-4,2, -1,-8,2, -1,-4,2,
+					//tył
+					0,-4,1, 0,-8,1, -1,-8,1,
+					0,-4,1, -1,-8,1, -1,-4,1,
+					//bok
+					0,-4,1, 0,-8,1, 0,-8,2,
+					0,-4,1, 0,-8,2, 0,-4,2,
+					//góra
+					0,-8,2, 0,-8,1, -1,-8,1,
+					0,-8,2, -1,-8,1, -1,-8,2,
+					//dół
+					0,-4,2, 0,-4,1, -1,-4,1,
+					0,-4,2, -1,-4,1, -1,-4,2,
+					//REKA PRAWA
+					//przód
+					-5,-4,2, -5,-8,2, -6,-8,2,
+					-5,-4,2, -6,-8,2, -6,-4,2,
+					//tył
+					-5,-4,1, -5,-8,1, -6,-8,1,
+					-5,-4,1, -6,-8,1, -6,-4,1,
+					//bok
+					-6,-4,1, -6,-8,1, -6,-8,2,
+					-6,-4,1, -6,-8,2, -6,-4,2,
+					//góra
+					-5,-8,2, -5,-8,1, -6,-8,1,
+					-5,-8,2, -6,-8,1, -6,-8,2,
+					//dół
+					-5,-4,2, -5,-4,1, -6,-4,1,
+					-5,-4,2, -6,-4,1, -6,-4,2,
+					//NOGA LEWA
+					//przód
+					-1,0,2.25, -1,-4,2.25, -2.5,-4,2.25,
+					-1,0,2.25, -2.5,-4,2.25, -2.5,0,2.25,
+					//tył
+					-1,0,0.75, -1,-4,0.75, -2.5,-4,0.75,
+					-1,0,0.75, -2.5,-4,0.75, -2.5,0,0.75,
+					//lewo
+					-1,0,0.75, -1,-4,0.75, -1,-4,2.25,
+					-1,0,0.75, -1,-4,2.25, -1,0,2.25,
+					//prawo
+					-2.5,0,0.75, -2.5,-4,0.75, -2.5,-4,2.25,
+					-2.5,0,0.75, -2.5,-4,2.25, -2.5,0,2.25,
+					//dół
+					-1,0,2.25, -1,0,0.75, -2.5,0,0.75,
+					-1,0,2.25, -2.5,0,0.75, -2.5,0,2.25,
+					//NOGA PRAWA
+					//przód
+					-3.5,0,2.25, -3.5,-4,2.25, -5,-4,2.25,
+					-3.5,0,2.25, -5,-4,2.25, -5,0,2.25,
+					//tył
+					-3.5,0,0.75, -3.5,-4,0.75, -5,-4,0.75,
+					-3.5,0,0.75, -5,-4,0.75, -5,0,0.75,
+					//lewo
+					-3.5,0,0.75, -3.5,-4,0.75, -3.5,-4,2.25,
+					-3.5,0,0.75, -3.5,-4,2.25, -3.5,0,2.25,
+					//prawo
+					-5,0,0.75, -5,-4,0.75, -5,-4,2.25,
+					-5,0,0.75, -5,-4,2.25, -5,0,2.25,
+					//dół
+					-3.5,0,2.25, -3.5,0,0.75, -5,0,0.75,
+					-3.5,0,2.25, -5,0,0.75, -5,0,2.25
+            	];
+
+				vertexPositionBufferPerson = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBufferPerson);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertPerson), gl.STATIC_DRAW);
+				vertexPositionBufferPerson.itemSize = 3;
+				vertexPositionBufferPerson.numItems = 62;
+
+				vertexPositionBufferCzonsteczki = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBufferCzonsteczki);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(newPosition), gl.STATIC_DRAW);
+				vertexPositionBufferCzonsteczki.itemSize = 3;
+				vertexPositionBufferCzonsteczki.numItems = 167;
+
+//COLORS
+				var vertexColorPerson=[
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0,
+					1,1,0, 1,1,0, 1,1,0
+            	];
+
+				vertexColorBufferPerson = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBufferPerson);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexColorPerson), gl.STATIC_DRAW);
+				vertexColorBufferPerson.itemSize = 3;
+				vertexColorBufferPerson.numItems = 62;
+
+				vertexColorBufferCzonsteczki = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBufferCzonsteczki);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(newColor), gl.STATIC_DRAW);
+				vertexColorBufferCzonsteczki.itemSize = 3;
+				vertexColorBufferCzonsteczki.numItems = 167;
+
+//TEXTURE COORDS
+				var vertexCoordsPerson=[
+				//GŁOWA
+				//tył
+				0.32,0.1, 0.32,0, 0.48,0,
+				0.32,0.1, 0.48,0, 0.48,0.1,
+				//przód
+				0.16,0.1, 0.16,0, 0.32,0,
+				0.16,0.1, 0.32,0, 0.32,0.1,
+				//lewo
+				0.48,0.1, 0.48,0, 0.64,0,
+				0.48,0.1, 0.64,0, 0.64,0.1,
+				//prawo
+				0.48,0.1, 0.48,0, 0.64,0,
+				0.48,0.1, 0.64,0, 0.64,0.1,
+				//góra
+				0,0.1, 0,0, 0.16,0,
+				0,0.1, 0.16,0, 0.16,0.1,
+				//BRZUCH
+				//plecy
+				0.32,0.3, 0.32,0.1, 0.64,0.1,
+				0.32,0.3, 0.64,0.1, 0.64,0.3,
+				//przód
+				0.0,0.3, 0.0,0.1, 0.32,0.1,
+				0.0,0.3, 0.32,0.1, 0.32,0.3,
+				//lewo
+				0.64,0.3, 0.64,0.1, 0.88,0.1,
+				0.64,0.3, 0.88,0.1, 0.88,0.3,
+				//prawo
+				0.64,0.3, 0.64,0.1, 0.88,0.1,
+				0.64,0.3, 0.88,0.1, 0.88,0.3,
+				//góra
+				0.9,0.9, 0.9,1, 1,1,
+				0.9,0.9, 0.9,1, 1,1,
+				//dół
+				0.7,0.6, 0.7,0.65, 0.72, 0.65,
+				0.7,0.6, 0.7,0.65, 0.72, 0.65,
+				//LEWA REKA
+				//tył
+				0.36,0.7, 0.36,0.5, 0.44,0.5,
+				0.36,0.7, 0.44,0.5, 0.44,0.7,
+				//przód
+				0.36,0.5, 0.36,0.3, 0.44,0.3,
+				0.36,0.5, 0.44,0.3, 0.44,0.5,
+				//bok
+				0.52,0.5, 0.52,0.3, 0.6,0.3,
+				0.52,0.5, 0.6,0.3, 0.6,0.5,
+				//góra
+				0.8,0.05, 0.8,0, 0.88,0,
+				0.8,0.05, 0.88,0, 0.88,0.05,
+				//dół
+				0.8,0.1, 0.8,0.05, 0.88,0.05,
+				0.8,0.1, 0.88,0.05, 0.88,0.1,
+				//PRAWA RĘKA
+				//tył
+				0.44,0.7, 0.44,0.5, 0.52,0.5,
+				0.44,0.7, 0.52,0.5, 0.52,0.7,
+				//przód
+				0.44,0.5, 0.44,0.3, 0.52,0.3,
+				0.44,0.5, 0.52,0.3, 0.52,0.5,
+				//bok
+				0.52,0.5, 0.52,0.3, 0.6,0.3,
+				0.52,0.5, 0.6,0.3, 0.6,0.5,
+				//góra
+				0.88,0.05, 0.88,0, 0.96,0,
+				0.88,0.05, 0.96,0, 0.96,0.05,
+				//dół
+				0.88,0.1, 0.88,0.05, 0.96,0.05,
+				0.88,0.1, 0.96,0.05, 0.96,0.1,
+				//LEWA NOGA
+				//tył
+				0.12,0.7, 0.12,0.5, 0.24,0.5,
+				0.12,0.7, 0.24,0.5, 0.24,0.7,
+				//przód
+				0,0.5, 0,0.3, 0.12,0.3,
+				0,0.5, 0.12,0.3, 0.12,0.5,
+				//lewo
+				0.24,0.5, 0.24,0.3, 0.36,0.3,
+				0.24,0.5, 0.36,0.3, 0.36,0.5,
+				//prawo
+				0.24,0.5, 0.24,0.3, 0.36,0.3,
+				0.24,0.5, 0.36,0.3, 0.36,0.5,
+				//dół
+				0.7,0.6, 0.7,0.65, 0.72, 0.65,
+				0.7,0.6, 0.7,0.65, 0.72, 0.65,
+				//PRAWA NOGA
+				//tył
+				0.12,0.5, 0.12,0.3, 0.24,0.3,
+				0.12,0.5, 0.24,0.3, 0.24,0.5,
+				//przód
+				0,0.7, 0,0.5, 0.12,0.5,
+				0,0.7, 0.12,0.5, 0.12,0.7,
+				//lewo
+				0.24,0.5, 0.24,0.3, 0.36,0.3,
+				0.24,0.5, 0.36,0.3, 0.36,0.5,
+				//prawo
+				0.24,0.5, 0.24,0.3, 0.36,0.3,
+				0.24,0.5, 0.36,0.3, 0.36,0.5,
+				//dół
+				0.7,0.6, 0.7,0.65, 0.72, 0.65,
+				0.7,0.6, 0.7,0.65, 0.72, 0.65
+            	];
+
+				vertexCoordsBufferPerson = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexCoordsBufferPerson);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexCoordsPerson), gl.STATIC_DRAW);
+				vertexCoordsBufferPerson.itemSize = 2;
+				vertexCoordsBufferPerson.numItems = 62;
+
+				vertexCoordsBufferCzonsteczki = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexCoordsBufferCzonsteczki);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(newCoords), gl.STATIC_DRAW);
+				vertexCoordsBufferCzonsteczki.itemSize = 2;
+				vertexCoordsBufferCzonsteczki.numItems = 167;
+
+//READ TEXTURE FROM FILE
+				textureBufferPerson = gl.createTexture();
+				var textureImgPerson = new Image();
+				textureImgPerson.onload = function()
+				{
+					gl.bindTexture(gl.TEXTURE_2D, textureBufferPerson);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImgPerson);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+				}
+				textureImgPerson.src="texture.png";
+
+				textureBufferCzonsteczki = gl.createTexture();
+				var textureImgCzonsteczki = new Image();
+				textureImgCzonsteczki.onload = function()
+				{
+					gl.bindTexture(gl.TEXTURE_2D, textureBufferCzonsteczki);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImgCzonsteczki);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+				}
+				textureImgCzonsteczki.src="cube.png";
+				
+
+//CAMERA POSTION
+				let aspect = gl.viewportWidth/gl.viewportHeight;
+				let fov = 300.0 * Math.PI / 180.0;
+				let zFar = 100.0;
+				let zNear = 0.1;
+				gl.enable(gl.DEPTH_TEST);
+  				gl.depthFunc(gl.LEQUAL); 
+				var kierunki = generateKierunki();
+				uPMatrix = [
+					1.0/(aspect*Math.tan(fov/2)),0,0,0,
+					0,1.0/(Math.tan(fov/2)),0,0,
+					0,0,-(zFar+zNear)/(zFar/zNear), -1,
+					0,0,-(2*zFar*zNear)/(zFar-zNear),0.0
+				];
+				tick(newPosition, kierunki);
+			}
+//START POSTION
+			//objects
+			var angleX = 0.0;
+			var angleY = 0.0;
+			var angleZ = 0.0;
+			var translateX = 0.0;
+			var translateY = 0.0;
+			var translateZ = -5.0;
+			//camera
+			var angleVZ = 180.0;
+			var angleVY = 0.0;
+			var angleVX = 180.0;
+			var translateVX = -5.0;
+			var translateVY = 5.0;
+			var translateVZ = -10.0;
+
+//MULTIPLY MATRIX
+			function MatrixMul(a,b)
+			{
+				let c=[
+					0,0,0,0,
+					0,0,0,0,
+					0,0,0,0,
+					0,0,0,0
+				];
+				for (let i=0;i<4;i++)
+				{
+					for (let j=0;j<4;j++)
+					{
+						c[i*4+j] = 0.0;
+						for (let k=0;k<4;k++)
+						{
+							c[i*4+j] += a[i*4+k] * b[k*4+j];
+						}
+					}
+				}
+				return c;
+			}
+
+			function tick(newPosition, kierunki)
+			{
+//TRANSLATE MATRIX
+				//objects
+				let uMVMatrix = [
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					0,0,0,1
+				]
+
+				let uMVTranslateZ = [
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					translateX,translateY,translateZ,1
+				]
+				let uMVRotZ = [
+					+Math.cos(angleZ*Math.PI/180.0), +Math.sin(angleZ*Math.PI/180.0), 0, 0,
+					-Math.sin(angleZ*Math.PI/180.0), +Math.cos(angleZ*Math.PI/180.0), 0, 0,
+					0,0,1,0,
+					0,0,0,1
+				];
+				let uMVRotY = [
+					+Math.cos(angleY*Math.PI/180.0), 0, -Math.sin(angleY*Math.PI/180.0), 0,
+					0,1,0,0,
+					+Math.sin(angleY*Math.PI/180.0), 0, +Math.cos(angleY*Math.PI/180.0), 0,
+					0,0,0,1
+				];
+				let uMVRotX = [
+					1,0,0,0,
+					0, +Math.cos(angleX*Math.PI/180.0), +Math.sin(angleX*Math.PI/180.0), 0,
+					0, -Math.sin(angleX*Math.PI/180.0), +Math.cos(angleX*Math.PI/180.0), 0,
+					0,0,0,1
+				];
+
+				uMVMatrix = MatrixMul(uMVMatrix,uMVRotX);
+				uMVMatrix = MatrixMul(uMVMatrix,uMVRotY);
+				uMVMatrix = MatrixMul(uMVMatrix,uMVRotZ);
+				uMVMatrix = MatrixMul(uMVMatrix,uMVTranslateZ);
+
+				//camera
+				var uVMatrix = [
+					1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 10, 1
+				];
+				
+				var uVRotZ = [
+					Math.cos(angleVZ * Math.PI / 180.0), Math.sin(angleVZ * Math.PI / 180.0), 0, 0,
+					-Math.sin(angleVZ * Math.PI / 180.0), Math.cos(angleVZ * Math.PI / 180.0), 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1
+				];
+				
+				var uVRotY = [
+					Math.cos(angleVY * Math.PI / 180.0), 0, -Math.sin(angleVY * Math.PI / 180.0), 0,
+					0, 1, 0, 0,
+					Math.sin(angleVY * Math.PI / 180.0), 0, Math.cos(angleVY * Math.PI / 180.0), 0,
+					0, 0, 0, 1
+				];
+				
+				var uVRotX = [
+					1, 0, 0, 0,
+					0, Math.cos(angleVX * Math.PI / 180.0), Math.sin(angleVX * Math.PI / 180.0), 0,
+					0, -Math.sin(angleVX * Math.PI / 180.0), Math.cos(angleVX * Math.PI / 180.0), 0,
+					0, 0, 0, 1
+				];
+				
+				var uVTranslate = [
+					1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					translateVX, translateVY, translateVZ, 1
+				];
+
+				uVMatrix = MatrixMul(uVMatrix, uVRotX);
+				uVMatrix = MatrixMul(uVMatrix, uVRotY);
+				uVMatrix = MatrixMul(uVMatrix, uVRotZ);
+				uVMatrix = MatrixMul(uVMatrix, uVTranslate);
+						
+				uMVTranslateX=[
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					czonsteczkiCenter.X,0,0,1
+				];
+
+				uMVTranslateY=[
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					0,czonsteczkiCenter.Y,0,1
+				];
+
+				uMVTranslateZ=[
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					0,0,czonsteczkiCenter.Z,1
+				];
+
+						
+//RENDER
+				gl.viewport(0,0,canvas.width,canvas.height);
+				gl.clearColor(0.9, 0.9, 0.7, 1.0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+				gl.useProgram(shaderProgram);
+				
+				gl.uniformMatrix4fv(gl.getUniformLocation(shaderProgram, "uPMatrix"), false, new Float32Array(uPMatrix));
+				gl.uniformMatrix4fv(gl.getUniformLocation(shaderProgram, "uVMatrix"), false, new Float32Array(uVMatrix));
+//BIND BUFFERS AND DRAW SHAPES
+				let attribLoc = gl.getAttribLocation(shaderProgram, "aVertexPosition");				
+				let attribLoc2 = gl.getAttribLocation(shaderProgram, "aVertexColor");
+				let attribLoc3 = gl.getAttribLocation(shaderProgram, "aVertexCoords");
+
+				//person bind
+				gl.enableVertexAttribArray(attribLoc);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBufferPerson);
+				gl.vertexAttribPointer(attribLoc, vertexPositionBufferPerson.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.enableVertexAttribArray(attribLoc2);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBufferPerson);
+				gl.vertexAttribPointer(attribLoc2, vertexColorBufferPerson.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.enableVertexAttribArray(attribLoc3);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexCoordsBufferPerson);
+				gl.vertexAttribPointer(attribLoc3, vertexCoordsBufferPerson.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, textureBufferPerson);
+				gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSampler"), 0);
+				
+				//person draw	
+				gl.uniformMatrix4fv(gl.getUniformLocation(shaderProgram, "uMVMatrix"), false, new Float32Array(uMVMatrix));
+				gl.drawArrays(gl.TRIANGLES, 0, vertexColorBufferPerson.numItems * vertexColorBufferPerson.itemSize);
+
+				//czonsteczki bind
+				gl.enableVertexAttribArray(attribLoc);
+				newPosition=newCzonsteczkiPosition(newPosition, kierunki);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBufferCzonsteczki);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(newPosition), gl.STATIC_DRAW);
+				gl.vertexAttribPointer(attribLoc, vertexPositionBufferCzonsteczki.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.enableVertexAttribArray(attribLoc2);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBufferCzonsteczki);
+				gl.vertexAttribPointer(attribLoc2, vertexColorBufferCzonsteczki.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.enableVertexAttribArray(attribLoc3);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexCoordsBufferCzonsteczki);
+				gl.vertexAttribPointer(attribLoc3, vertexCoordsBufferCzonsteczki.itemSize, gl.FLOAT, false, 0, 0);
+
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, textureBufferCzonsteczki);
+				gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSampler"), 0);
+				
+				//czonsteczki draw
+				uMVMatrix = MatrixMul(uMVMatrix,uMVTranslateY);
+				uMVMatrix = MatrixMul(uMVMatrix,uMVTranslateZ);	
+				uMVMatrix = MatrixMul(uMVMatrix,uMVTranslateX);		
+				gl.uniformMatrix4fv(gl.getUniformLocation(shaderProgram, "uMVMatrix"), false, new Float32Array(uMVMatrix));
+				gl.drawArrays(gl.TRIANGLES, 0, vertexColorBufferCzonsteczki.numItems * vertexColorBufferCzonsteczki.itemSize);		
+				
+				setTimeout(function(){tick(newPosition, kierunki);}, 1);			
+			}
+
+//czonsteczki
+			function createCzonsteczki()
+			{
+				let position = [], colors = [], coords = [], normals = [];
+				let posx, posy, posz;
+				for(let i=0; i<501; i++)
+				{
+					colors.push(Math.random());
+					normals.push(Math.random());
+					coords.push(Math.random());
+					
+					colors.push(Math.random());
+					normals.push(Math.random());
+					coords.push(Math.random());
+					
+					colors.push(Math.random());
+					normals.push(Math.random());
+				}
+
+				for(let i=0; i<167; i++)
+				{
+					posx = Math.random()*0.5;
+					posy = Math.random()*0.5;
+					posz = Math.random()*0.5;
+
+					position.push(posx);
+					position.push(posy);
+					position.push(posz);
+
+					position.push(posx+Math.random()*0.1);
+					position.push(posy+Math.random()*0.1);
+					position.push(posz+Math.random()*0.1);
+
+					position.push(posx+Math.random()*0.1);
+					position.push(posy+Math.random()*0.1);
+					position.push(posz+Math.random()*0.1);
+				}
+				return [position, colors, coords, normals];
+			}
+
+			function newCzonsteczkiPosition(prevPos, kierunki)
+			{
+				let newPos=[];
+				let j=0;
+				let kierunekX=0, kierunekY=0, kierunekZ=0;
+				for (let i=0;i<167;i++)
+				{
+					kierunekX=kierunki[3*i];
+					kierunekY=kierunki[3*i+1];
+					kierunekZ=kierunki[3*i+2];
+
+					newPos.push(prevPos[j]+kierunekX * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekY * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekZ * 0.001);
+					j++;
+
+					newPos.push(prevPos[j]+kierunekX * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekY * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekZ * 0.001);
+					j++;
+
+					newPos.push(prevPos[j]+kierunekX * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekY * 0.001);
+					j++;
+					newPos.push(prevPos[j]+kierunekZ * 0.001);
+					j++;
+				}
+				return newPos;
+			}
+
+			function generateKierunki()
+			{
+				let kierunki = [];
+				let s=4;
+				let a=2;
+
+				for (let i = 0; i < 167; i++)
+				{
+					kierunki.push(Math.random()*s-a); //kierunek x
+					kierunki.push(Math.random()*s-a); //kierunek y
+					kierunki.push(Math.random()*s-a); //kierunek z
+				}
+
+				return kierunki;
+			}
+//READ KEYS
+			function keyevent(e)
+			{
+				//MOVE CAMERA
+				if (e.key=="4") angleVY += 5; //obrót lewo
+				if (e.key=="6") angleVY -= 5; //obrót prawo
+
+				if (e.key=="ArrowUp") translateVZ+=1;		//przód
+				if (e.key=="ArrowDown") translateVZ-=1;	 	//tył
+
+				if (e.key=="ArrowLeft") translateVX-=1;	//lewo
+				if (e.key=="ArrowRight") translateVX+=1;	//prawo
+
+				if (e.key=="8") translateVY+=0.5;	//góra
+				if (e.key=="2") translateVY-=0.5;	//dół
+				
+				//MOVE PERSON
+				if (e.key=="w") translateZ-=1;	//w
+				if (e.key=="s") translateZ+=1;	//s
+
+				if (e.key=="a") translateX+=1;	//a
+				if (e.key=="d") translateX-=1;	//d
+			}
+		</script>
+	</head>
+	<body onload="startGL()" onkeydown="keyevent(event)">
+		<canvas id="3dcanvas" style="border: solid black 1px;" width="300" height="300"></canvas>
+		<pre><b>Instrukcja:</b>
+Poruszanie bohatera:		Poruszanie kamerą:
+W - przód			Strzałki - poruszanie kamery przód/tył i na boki
+S - tył				Klawiatura numeryczna:
+A - lewo				8 - kamera do góry
+D - prawo				2 - kamera w dół
+					4 - obrót kamery w lewo
+					6 - obrót kamery w prawo
+		</pre>
+	</body>
+</html>

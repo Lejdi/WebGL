@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>Document</title>
+</head>
+
+<body style="margin: 0">
+  <canvas id="canvas" width="600" height="600">
+  </canvas>
+  <script type="text/javascript">
+
+  //functions for matrix calculations
+function invert1dMat(matrix) {
+  var result = [];
+
+  var n11 = matrix[0], n12 = matrix[4], n13 = matrix[8], n14 = matrix[12];
+  var n21 = matrix[1], n22 = matrix[5], n23 = matrix[9], n24 = matrix[13];
+  var n31 = matrix[2], n32 = matrix[6], n33 = matrix[10], n34 = matrix[14];
+  var n41 = matrix[3], n42 = matrix[7], n43 = matrix[11], n44 = matrix[15];
+
+  result[0] = n23 * n34 * n42 - n24 * n33 * n42 + n24 * n32 * n43 - n22 * n34 * n43 - n23 * n32 * n44 + n22 * n33 * n44;
+  result[4] = n14 * n33 * n42 - n13 * n34 * n42 - n14 * n32 * n43 + n12 * n34 * n43 + n13 * n32 * n44 - n12 * n33 * n44;
+  result[8] = n13 * n24 * n42 - n14 * n23 * n42 + n14 * n22 * n43 - n12 * n24 * n43 - n13 * n22 * n44 + n12 * n23 * n44;
+  result[12] = n14 * n23 * n32 - n13 * n24 * n32 - n14 * n22 * n33 + n12 * n24 * n33 + n13 * n22 * n34 - n12 * n23 * n34;
+  result[1] = n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * n33 * n44;
+  result[5] = n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * n33 * n44;
+  result[9] = n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * n23 * n44;
+  result[13] = n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * n23 * n34;
+  result[2] = n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * n32 * n44;
+  result[6] = n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * n32 * n44;
+  result[10] = n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * n22 * n44;
+  result[14] = n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * n22 * n34;
+  result[3] = n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * n32 * n43;
+  result[7] = n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * n32 * n43;
+  result[11] = n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * n22 * n43;
+  result[15] = n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * n22 * n33;
+
+  var determinant = n11 * result[0] + n21 * result[4] + n31 * result[8] + n41 * result[12];
+
+  if (determinant === 0) {
+      throw new Error("Can't invert matrix, determinant is 0");
+  }
+
+  for (var i = 0; i < result.length; i++) {
+      result[i] /= determinant;
+  }
+
+  return result;
+}
+
+const CrossProduct = (A, B) => (
+[
+    A[1] * B[2] - A[2] * B[1],
+    A[2] * B[0] - A[0] * B[2],
+    A[0] * B[1] - A[1] * B[0]
+]);
+
+function Normalize(A) {
+const length = Math.sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2])
+return [A[0] / length, A[1] / length, A[2] / length];
+}
+
+const isPowerOf2 = value =>
+((value & (value - 1)) == 0);
+
+
+function MatrixMul(matrix1, matrix2) {
+  let c = [
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0
+  ]
+
+  for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+          c[i * 4 + j] = 0.0;
+          for (let k = 0; k < 4; k++) {
+              c[i * 4 + j] += matrix1[i * 4 + k] * matrix2[k * 4 + j];
+          }
+      }
+  }
+  return c;
+}
+const transpose1dMat = (m) => (
+[
+    m[0], m[4], m[8], m[12],
+    m[1], m[5], m[9], m[13],
+    m[2], m[6], m[10], m[14],
+    m[3], m[7], m[11], m[15],
+]);
+const scale3dMat = (x) =>
+([
+    x, 0, 0, 0,
+    0, x, 0, 0,
+    0, 0, x, 0,
+    0, 0, 0, 1
+]);
+
+const translate3dMat = (a = 0, b = 0, c = 0) =>
+([
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    a, b, c, 1
+]);
+
+
+const identity3dMat = () => (
+[
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+]
+);
+
+const rotateZ = angle => ([
+Math.cos(angle * Math.PI / 180.0), Math.sin(angle * Math.PI / 180.0), 0, 0,
+-Math.sin(angle * Math.PI / 180.0), Math.cos(angle * Math.PI / 180.0), 0, 0,
+0, 0, 1, 0,
+0, 0, 0, 1
+]);
+
+const rotateY = angle => [
+Math.cos(angle * Math.PI / 180.0), 0, -Math.sin(angle * Math.PI / 180.0), 0,
+0, 1, 0, 0,
+Math.sin(angle * Math.PI / 180.0), 0, Math.cos(angle * Math.PI / 180.0), 0,
+0, 0, 0, 1
+];
+
+const rotateX = angle => [
+1, 0, 0, 0,
+0, Math.cos(angle * Math.PI / 180.0), Math.sin(angle * Math.PI / 180.0), 0,
+0, -Math.sin(angle * Math.PI / 180.0), Math.cos(angle * Math.PI / 180.0), 0,
+0, 0, 0, 1
+];
+
+
+const rotate3d = angle => (
+MatrixMul(MatrixMul(rotateX(angle), rotateY(angle)), rotateZ(angle))
+);
+
+//planets definiton
+var sun = {};
+sun.file='sun.jpg';
+sun.radius=10;
+
+var mercury = {};
+mercury.file='mercury.jpg';
+mercury.radius=1;
+mercury.orbit=70;
+mercury.yearLen=50;
+mercury.rotate=0;
+mercury.angle=0;
+
+var venus = {};
+venus.file='venus.jpg';
+venus.radius=1;
+venus.orbit=90;
+venus.yearLen=43;
+venus.rotate=0;
+venus.angle=0;
+
+var earth = {};
+earth.file='earth.jpg';
+earth.radius=1;
+earth.orbit=106;
+earth.yearLen=26;
+earth.rotate=0;
+earth.angle=0;
+
+var mars = {};
+mars.file='mars.jpg';
+mars.radius=1;
+mars.orbit=120;
+mars.yearLen=23;
+mars.rotate=0;
+mars.angle=0;
+
+var jupiter = {};
+jupiter.file='jupiter.jpg';
+jupiter.radius=2;
+jupiter.orbit=180;
+jupiter.yearLen=14;
+jupiter.rotate=0;
+jupiter.angle=0;
+
+var gl;
+var shaderProgram;
+var uPMatrix;
+
+var vertBuffer;
+var colorBuffer;
+var itemSize;
+var numItems;
+var coordsBuffer;
+var coordsItemSize;
+var normalBuffer;
+var normalItemSize;
+
+var programInfo;
+
+var translateVX = 30.0;
+var translateVY = 0.0;
+var translateVZ = -300.0;
+
+var time = 0;
+
+function main() {
+  const canvas = document.getElementById("canvas");
+  gl = null;
+  try {
+    gl = canvas.getContext("experimental-webgl");
+  } catch (e) { }
+  if (!gl) alert("webgl not found");
+
+
+  const aspect = canvas.width / canvas.height;
+  let fov = 45.0 * Math.PI / 180.0;
+  let zFar = 2000.0;
+  let zNear = 1;
+
+  uPMatrix = [
+    1.0 / (aspect * Math.tan(fov / 2)), 0, 0, 0,
+    0, 1.0 / (Math.tan(fov / 2)), 0, 0,
+    0, 0, (zFar + zNear) / (zNear - zFar), -1,
+    0, 0, (2 * zFar * zNear) / (zNear - zFar), 0.0
+  ];
+
+  const vsSource = `
+    precision mediump float;
+
+    attribute lowp vec3 aVertexColor;
+    attribute highp vec3 aVertexPosition;
+    attribute vec2 aVertexCoords;
+    attribute vec3 aNormals;
+
+    uniform highp mat4 uMMatrix;
+    uniform highp mat4 uPMatrix;
+    uniform highp mat4 uVMatrix;
+    uniform mat4 uMMatrixInverseTranspose;
+    uniform bool calcLight;
+
+    varying lowp vec3 vColor;
+    varying vec2 vTexUV;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    uniform vec3 uLightPosition;
+    uniform vec3 u_viewWorldPosition;
+
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+
+    void main(){
+        gl_Position = uPMatrix * uVMatrix  * uMMatrix * vec4(aVertexPosition, 1.0);
+
+        vNormal = mat3(uMMatrixInverseTranspose) * aNormals;
+        vec3 surfaceWorldPosition = (uMMatrix * vec4(aVertexPosition, 1.0)).xyz;
+        v_surfaceToLight =  surfaceWorldPosition - uLightPosition;
+
+        vColor = aVertexColor;
+        vTexUV = aVertexCoords;
+        vPosition = aVertexPosition;
+    }`;
+
+  const fsSource = `
+    precision mediump float;
+
+    varying lowp vec3 vColor;
+    varying vec2 vTexUV;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    uniform sampler2D uSampler;
+    uniform vec3 uLightPosition;
+    uniform bool calcLight;
+
+    varying vec3 v_surfaceToLight;
+    varying vec3 v_surfaceToView;
+
+    void main(){
+      vec3 normal = normalize(vNormal);
+      vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+
+      float light = dot(normal, surfaceToLightDirection);
+
+      gl_FragColor = texture2D(uSampler, vTexUV);
+      if(calcLight==true)
+        gl_FragColor.rgb *= light;
+    }`;
+
+  shaderProgram = gl.createProgram();
+
+  shader = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(shader, vsSource);
+  gl.compileShader(shader);
+  gl.attachShader(shaderProgram, shader);
+
+  shader = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(shader, fsSource);
+  gl.compileShader(shader);
+  gl.attachShader(shaderProgram, shader);
+
+  gl.linkProgram(shaderProgram);
+
+  programInfo = {
+    program: shaderProgram,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+      vertexCoords: gl.getAttribLocation(shaderProgram, 'aVertexCoords'),
+      normals: gl.getAttribLocation(shaderProgram, 'aNormals')
+    },
+    uniformLocations: {
+      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uPMatrix'),
+      modelMatrix: gl.getUniformLocation(shaderProgram, 'uMMatrix'),
+      viewMatrix: gl.getUniformLocation(shaderProgram, 'uVMatrix'),
+      sampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
+      calcLight: gl.getUniformLocation(shaderProgram, 'calcLight'),
+      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
+      viewWorldPosition: gl.getUniformLocation(shaderProgram, 'u_viewWorldPosition'),
+      mMatrixInverseTranspose: gl.getUniformLocation(shaderProgram, 'uMMatrixInverseTranspose'),
+    },
+  };
+
+
+  var newPosition = [];
+  var newCoords = [];
+  var newColor = [];
+  var newNormals = [];
+
+  {
+    let [position, colors, coords, normals] = createSphere(5, 50, 50);
+    newPosition.push(...position);
+    newCoords.push(...coords);
+    newColor.push(...colors);
+    newNormals.push(...normals);
+  }
+
+  let temp;
+
+  temp = initBuffer(newPosition, 3);
+  vertBuffer = temp[0]; 
+  numItems = temp[1]; 
+  itemSize = temp[2];
+
+  temp = initBuffer(newColor, 3)
+  colorBuffer = temp[0];
+
+  temp = initBuffer(newCoords, 2);
+  coordsBuffer = temp[0]; 
+  coordsItemSize = temp[2];
+
+  temp = initBuffer(newNormals, 3);
+  normalBuffer = temp[0]; 
+  normalItemSize = temp[2];
+
+  sun.texture = createTexture(gl, sun.file);
+  mercury.texture = createTexture(gl, mercury.file);
+  venus.texture = createTexture(gl, venus.file);
+  earth.texture = createTexture(gl, earth.file);
+  mars.texture = createTexture(gl, mars.file);
+  jupiter.texture = createTexture(gl, jupiter.file);
+
+  requestAnimationFrame(animate);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  render();
+}
+
+function render() {
+  time+=0.0003;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0.0, 0.0, 0.0, 0.9);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.useProgram(shaderProgram);
+
+  gl.depthFunc(gl.LEQUAL);
+
+  let uVMatrix = identity3dMat();
+  uVMatrix = MatrixMul(MatrixMul(rotateX(180), rotateY(0)), rotateZ(0))
+  uVMatrix = MatrixMul(uVMatrix, translate3dMat(translateVX, translateVY, translateVZ));
+  uVMatrix = invert1dMat(uVMatrix);
+
+  gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, new Float32Array(uPMatrix));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, new Float32Array(uVMatrix));
+
+  switchBuffers(programInfo, vertBuffer, colorBuffer, numItems, itemSize)
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, coordsBuffer);
+  gl.vertexAttribPointer(programInfo.attribLocations.vertexCoords, coordsItemSize, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexCoords);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+  gl.vertexAttribPointer(programInfo.attribLocations.normals, normalItemSize, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(programInfo.attribLocations.normals);
+
+  gl.uniform3fv(programInfo.uniformLocations.lightPosition, [0,0,0]);
+
+  let temp_x = 0, temp_z = 0;
+  let uModelMatrix;
+  let worldInverseMatrix;
+  let worldInverseTransposeMatrix;
+
+  //draw sun
+  gl.activeTexture(gl[`TEXTURE0`]);
+  gl.bindTexture(gl.TEXTURE_2D, sun.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 0);
+  gl.uniform1i(programInfo.uniformLocations.calcLight, false);
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(sun.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+
+//draw mercury
+  gl.activeTexture(gl[`TEXTURE1`]);
+  gl.bindTexture(gl.TEXTURE_2D, mercury.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 1);
+  gl.uniform1i(programInfo.uniformLocations.calcLight, true);
+
+  temp_x = Math.cos(time * mercury.yearLen) * (mercury.orbit - mercury.radius);
+  temp_z = Math.sin(time * mercury.yearLen) * (mercury.orbit + mercury.radius);
+  mercury.angle += mercury.rotate;
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, rotate3d(mercury.angle));
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(mercury.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+
+//draw venus
+  gl.activeTexture(gl[`TEXTURE2`]);
+  gl.bindTexture(gl.TEXTURE_2D, venus.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 2);
+
+  temp_x = Math.cos(time * venus.yearLen) * (venus.orbit - venus.radius);
+  temp_z = Math.sin(time * venus.yearLen) * (venus.orbit + venus.radius);
+  venus.angle += venus.rotate;
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, rotate3d(venus.angle));
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(venus.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+
+//draw earth
+  gl.activeTexture(gl[`TEXTURE3`]);
+  gl.bindTexture(gl.TEXTURE_2D, earth.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 3);
+
+  temp_x = Math.cos(time * earth.yearLen) * (earth.orbit - earth.radius);
+  temp_z = Math.sin(time * earth.yearLen) * (earth.orbit + earth.radius);
+  earth.angle += earth.rotate;
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, rotate3d(earth.angle));
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(earth.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+
+
+//draw mars
+  gl.activeTexture(gl[`TEXTURE4`]);
+  gl.bindTexture(gl.TEXTURE_2D, mars.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 4);
+
+  temp_x = Math.cos(time * mars.yearLen) * (mars.orbit - mars.radius);
+  temp_z = Math.sin(time * mars.yearLen) * (mars.orbit + mars.radius);
+  mars.angle += mars.rotate;
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, rotate3d(mars.angle));
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(mars.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+
+//draw jupiter
+  gl.activeTexture(gl[`TEXTURE5`]);
+  gl.bindTexture(gl.TEXTURE_2D, jupiter.texture);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 5);
+
+  temp_x = Math.cos(time * jupiter.yearLen) * (jupiter.orbit - jupiter.radius);
+  temp_z = Math.sin(time * jupiter.yearLen) * (jupiter.orbit + jupiter.radius);
+  jupiter.angle += jupiter.rotate;
+
+  uModelMatrix = identity3dMat();
+  uModelMatrix = MatrixMul(uModelMatrix, rotate3d(jupiter.angle));
+  uModelMatrix = MatrixMul(uModelMatrix, scale3dMat(jupiter.radius));
+  uModelMatrix = MatrixMul(uModelMatrix, translate3dMat(temp_x, 0, temp_z));
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, new Float32Array(uModelMatrix));
+
+  worldInverseMatrix = invert1dMat(uModelMatrix);
+  worldInverseTransposeMatrix = transpose1dMat(worldInverseMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.mMatrixInverseTranspose, false, worldInverseTransposeMatrix);
+
+  gl.drawArrays(gl.TRIANGLES, 0, numItems);
+}
+
+function initBuffer(data, size) {
+  let buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+
+  const num = data.length / size;
+  return [buffer, num, size];
+
+}
+
+function switchBuffers(programInfo, vert, color, num, size) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, vert);
+  gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, size, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, color);
+  gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, size, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
+}
+
+function createTexture(gl, url) {
+  const textureBuffer = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
+    1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array([0, 0, 255, 255]));
+
+  var textureImg = new Image();
+  textureImg.onload = function () {
+    gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImg);
+
+    if (isPowerOf2(textureImg.width) && isPowerOf2(textureImg.height)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+  }
+  textureImg.src = url;
+
+  return textureBuffer;
+}
+
+function createSphere(R = 5, n = 32, m = 32) {
+
+  let position = [], colors = [], coords = [], normals = [];
+  const deltaAlfa = 360 / n;
+  const deltaBeta = 180 / m;
+  const deltaBetaRad = deltaBeta * (Math.PI / 180);
+
+  let uv_y = 0;
+  let uv_x = 0;
+
+  const v = 1 / m;
+  const u = 1 / n;
+  for (let j = -m / 2; j < m / 2; j++) {
+    const beta1 = j * deltaBetaRad;
+    const beta2 = (j + 1) * deltaBetaRad;
+
+    const r1 = R * Math.cos(beta1);
+    const r2 = R * Math.cos(beta2);
+    const y1 = R * Math.sin(beta1);
+    const y2 = R * Math.sin(beta2);
+
+    uv_x = 0;
+    for (let i = 0; i < n; i++) {
+      const alfa1 = i * deltaAlfa;
+      const alfa1rad = alfa1 * Math.PI / 180;
+      const alfa2 = (i + 1) * deltaAlfa;
+      const alfa2rad = alfa2 * Math.PI / 180;
+
+      const pnt0X = r1 * Math.cos(alfa1rad);
+      const pnt0Z = r1 * Math.sin(alfa1rad);
+
+      const pnt1X = r1 * Math.cos(alfa2rad);
+      const pnt1Z = r1 * Math.sin(alfa2rad);
+
+      const pnt2X = r2 * Math.cos(alfa2rad);
+      const pnt2Z = r2 * Math.sin(alfa2rad);
+
+      const pnt3X = r2 * Math.cos(alfa1rad);
+      const pnt3Z = r2 * Math.sin(alfa1rad);
+
+      const vecA = [pnt1X - pnt0X, y1 - y1, pnt1Z - pnt0Z];
+      const vecB = [pnt3X - pnt0X, y2 - y1, pnt3Z - pnt0Z];
+      const norm = Normalize(CrossProduct(vecA, vecB));
+
+
+      position.push(...[pnt0X, y1, pnt0Z]);
+      coords.push(...[uv_x, uv_y]);
+
+      position.push(...[pnt1X, y1, pnt1Z]);
+      coords.push(...[uv_x + u, uv_y]);
+
+      position.push(...[pnt2X, y2, pnt2Z]);
+      coords.push(...[uv_x + u, uv_y + v]);
+
+      normals.push(...norm);
+      normals.push(...norm);
+      normals.push(...norm);
+
+      colors.push(...[1, 1, 0]);
+      colors.push(...[1, 1, 0])
+      colors.push(...[1, 1, 0])
+
+      position.push(...[pnt0X, y1, pnt0Z]);
+      coords.push(...[uv_x, uv_y]);
+
+      position.push(...[pnt2X, y2, pnt2Z]);
+      coords.push(...[uv_x + u, uv_y + v])
+
+      position.push(...[pnt3X, y2, pnt3Z]);
+      coords.push(...[uv_x, uv_y + v])
+
+      normals.push(...norm);
+      normals.push(...norm);
+      normals.push(...norm);
+
+      colors.push(...[1, 1, 0]);
+      colors.push(...[1, 1, 0]);
+      colors.push(...[1, 1, 0]);
+      uv_x += u;
+
+    }
+    uv_y += v;
+  }
+
+  return [position, colors, coords, normals];
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("keydown", (e) => {
+    if (e.code == "KeyW") translateVY -= 5;
+    if (e.code == "KeyS") translateVY += 5;
+    if (e.code == "KeyA") translateVX -= 5;
+    if (e.code == "KeyD") translateVX += 5;
+    if (e.code == "KeyQ") translateVZ -= 5;
+    if (e.code == "KeyE") translateVZ += 5;w
+  })
+  main();
+
+})
+  </script>
+</body>
+
+</html>
